@@ -1,188 +1,110 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
+void launch(char **args);
+void print_command(char **args, int num_args);
 
-#define BUFFER 100
-
-void parse_path();
-void parse_input(char * buff);
-int count_it( char* str, char del );
-void correct_string(char* str);
-
-char** paths;
-int c;
-
-int main(int argc, char *argv[])
+int main()
 {
-	parse_path();
- 
-	char buffer [ BUFFER ];
+	char c;
+	char* current_arg = malloc(50*sizeof(char*)); //max size of current_arg = 50 chars (arbitrary max)
+	char** command_args = malloc(1000*sizeof(char*)); // literally no clue what to set it as
+	int index = 0, num_args = 0;
+
 	printf("\nsish:>");
-	while(fgets(buffer, BUFFER, stdin) != NULL)
+	while( (c=getchar())!= EOF )
 	{	
-		parse_input(buffer);
-		printf("\nsish:>");
+		if( c == '|' || c=='<' || c=='>' || c == ' ' || c == '&' || c == '\n')
+		{	
+			if( index != 0 ) // Reached the end of a token, time to store
+			{
+				current_arg[index] = '\0';  // Null terminate the token
+				index = 0; // Reset current_arg index
 
+				command_args[ num_args ] = malloc(50*sizeof(char*));
+				strcpy(command_args[ num_args ], current_arg); //store current_arg
+
+				memset(current_arg, 0, sizeof current_arg); //clear the current arg buffer
+				num_args += 1; //increment number of arguments
+			}	
+
+			if (c == '\n') {
+				command_args[ num_args ] = '\0';
+
+				print_command(command_args, num_args);
+				//fork/execute progam
+				launch(command_args);
+
+
+				//Reset Variables for next command
+				memset(command_args, 0, sizeof command_args);
+				num_args = 0;
+
+				printf("\nsish:>");
+			}
+			else if( c == ' ') continue; //If we hit a space, reset arg index
+
+			else { // c == | < > &
+				char* charstr = malloc(2*sizeof(char*));
+				charstr[0] = c;
+				charstr[1] = '\0';
+
+				command_args[ num_args ] =  malloc(2*sizeof(char*));
+				strcpy(command_args[ num_args ], charstr); //store the operator as a current_arg
+				num_args += 1;
+				free(charstr);
+			}
+		}
+		else //Reached normal character
+		{	
+			current_arg[index] = c;
+			index += 1;	
+		}
 	}
-
-	
-
-
 	return 0;
 }
 
-int count_it( char* str, char del )
-{
-	int i = 0;
-	if( !str )  {i = 0;}
-	else
-	{
-		for (i = 0; str[i]; str[i]==del ? i++ : *str++);
-		i++;
+
+void launch(char **args) {
+	pid_t process_id = fork();	
+	int status;
+
+	if (process_id == 0) {
+		//Child Process
+		printf("Hello from Child\n");
+
+		if (execvp(args[0], args) == -1) {
+		//if (execvp("/bin/sh", NULL) == -1){
+		    printf("Unknown command\n");
+		    exit(0);
+		}
 	}
-	return i;
+	else if (process_id < 0) {
+		//error
+	}
+	else {
+		//Parent Process
+		printf("Hello from Parent\n");
+		int child_return_status;
+		waitpid(process_id, &child_return_status, 0);
+
+		if (child_return_status){
+			//error
+			printf("Error in child process.");
+		}
+		else {
+			//no error
+			printf("Child process finished with return status %d\n", child_return_status);
+		}
+	}
 }
 
-void parse_path()
-{
-	char* getnum = getenv("PATH");
-	char*p = getenv("PATH");
-	int i; //include the first and last paths
 
-	i = count_it( getnum, ':' );
-
-	// printf("%d\n", i);
-	paths = malloc(i*sizeof(char*));
-
-	char* init;
-	init = strtok(p, ":");
-	int count = 0;
-
-	while( init != NULL )
-	{
-		paths[count] = init; 
-		count+=1;
-		init = strtok(NULL, ":");
-	}
+void print_command(char **args, int num_args) {
+	for (int i = 0; i < num_args; i++)
+		printf("%s\n", args[i]);
+	printf("\n");
 }
-
-void parse_input(char * buff)
-{
-	char** args;
-	char buff_copy[100];
-
-	strcpy(buff_copy, buff);
-
-
-	int num_args = count_it(buff_copy, ' ');
-	args = malloc(num_args*sizeof(char*));
-
-	printf("%d\n", num_args);
-	int i = 0;
-	for (; i < num_args; i++) args[i] = malloc(128*sizeof(char));
-	i = 0;
-
-	args[i] = strtok(buff, " ");
-	while(i < num_args)
-	{
-		// printf("%s\n", args[i]);
-		i+=1;
-		args[i] = strtok(NULL, " ");
-		
-	}
-	// printf("%s\n", buff);
-}
-
-void correct_string(char* str)
-{
-	//make local copy
-	char** corrected_str;
-	int corrected_args = 0;
-
-	char** args;
-	char copy[100];
-	strcpy(copy, str);
-
-	int num_args = count_it(copy, ' ');
-	args = malloc(num_args*sizeof(char*)); //2* bcs thats the max num of operators, then search for operators
-	corrected_str = malloc(2*num_args*sizeof(char*)); //2* bcs thats the max num of operators, then search for operators
-
-	int i = 0;
-	args[i] = strtok(copy, " ");
-	while( i < num_args )
-	{
-		i += 1;
-		args[i] = strtok(NULL, " ");
-	}
-
-	const char* operators = "<>|";
-	int boolean = 0;
-	for(i = 0; i < num_args; i++)
-	{
-		char* c = args[i];
-		while( *c )
-		{		
-			// add the term, operator, term
-			if( strchr( operators , *c) )
-			{
-				// printf("%c is in \"%s\" @index=%d\n", *c, args[i], (int)(c-args[i]) );
-
-				//get command1
-				strncpy(corrected_str[corrected_args], args[i], (int)(c-args[i])  );
-				corrected_str[corrected_args][(int)(c-args[i])] = '\0';
-				corrected_args += 1;
-				printf("%s", args[i]);
-
-				//get operator
-				int index = (int)(c-args[i]);	
-				printf("Index: %d\n", index);
-				char* temp = args[i];
-				temp = temp+5;
-				printf("FromCharacterOn: %s", temp);
-				// char subbuff [ strlen(args[i]) - index  ];
-				// memcpy( subbuff, args[] )
-				// printf("FromCharacterOn: %s", args[i][index]);
-				strncpy(corrected_str[corrected_args], temp, 1  );
-				corrected_str[corrected_args][1] = '\0';
-				corrected_args += 1;	
-
-				//get 2ndcommand if any
-				// strncpy(corrected_str[corrected_args], args[i]+(int)(c-args[i])+1, 5 );
-				int len_last_term = strlen( args[i] )-(int)( c-args[i] )  ;
-				char* mod_str = c+1;
-				printf("\nMod: %s\n", mod_str);
-				// strncpy(corrected_str[corrected_args], (char*)(c-args[i]) , len_last_term );
-				corrected_str[corrected_args] = mod_str;
-				corrected_args += 1;				
-
-				boolean = 1;
-			}
-			c++; //hehe
-		}
-
-		if(boolean)
-		{
-			boolean = 0;
-			
-		}
-		else
-		{
-			printf("No Arg: %s", args[i]);
-			corrected_str[ corrected_args ] = args[i];
-			corrected_args+=1;
-			
-		}
-
-	}//end for
-
-	printf(":: PRINTING CORRECTED ARRAY OF ARGS ::\n\n");
-	int j = 0;
-	for(; j < corrected_args; j++)
-	{
-		printf("%s\n", corrected_str[j]);
-	}
-
-
-}//endfunc
-
