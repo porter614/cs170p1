@@ -47,6 +47,11 @@ int main()
 			}
 			else if( c == ' ') continue; //If we hit a space, reset arg index
 
+			else if( c == '|') {
+				command_args[ num_args ] = '\0';
+			}
+
+
 			else { // c == | < > &
 				char* charstr = malloc(2*sizeof(char*));
 				charstr[0] = c;
@@ -101,6 +106,23 @@ void launch(char **args) {
 		}
 	}
 }
+
+void launch_pipe(char **args1, char **args2) {	
+	int status, pipe_fd[2];
+
+	if (fork() == 0) {
+		if (execvp(args[0], args) == -1) {
+
+		}
+	}
+	else if (process_id < 0) {
+		//error
+	}
+	else {
+
+	}
+}
+
 
 
 void print_command(char **args, int num_args) {
