@@ -15,75 +15,59 @@ int main()
 	char* last_arg = malloc(50*sizeof(char));
 	char** command_args = malloc(50*sizeof(char*)); // literally no clue what to set it as
 	char** launch_command = malloc(50*sizeof(char*));
-	int index = 0, num_args = 0, pipe_indeces[50], gt_found = 0, lt_found;
-	int MAX_ARG_POSSIBLE = 1024;
-	int NO_PIPES = 0;
-	//this array will store all possible locations of pipes, -1 signifies end of pipe list
-	int pipe_locations[ MAX_ARG_POSSIBLE ];
-	int n = 0;
-	for(n = 0; n < MAX_ARG_POSSIBLE ; n++) { pipe_locations[n] = -1; }
+	int index = 0, num_args = 0, pipe_indeces[50], pipe_count = 0, gt_found = 0, lt_found;
 
-	//printing the shell prompt
 	printf("\nsish:>");
-	//interpret character-by-character 
 	while( (c=getchar())!= EOF )
 	{	
 		if( c == '|' || c=='<' || c=='>' || c == ' ' || c == '&' || c == '\n')
 		{	
-			// Reached the end of a token, time to store argument that has been built
-			if( index != 0 ) 
-			{	
-				// Null terminate the token
-				current_arg[index] = '\0';  
-				// Reset current_arg index for next arg rebuild
-				index = 0; 
+			if( index != 0 ) // Reached the end of a token, time to store
+			{
+				current_arg[index] = '\0';  // Null terminate the token
+				index = 0; // Reset current_arg index
 
-				//allocate space for argument, store it
 				command_args[ num_args ] = malloc(50*sizeof(char*));
-				strcpy(command_args[ num_args ], current_arg);
+				strcpy(command_args[ num_args ], current_arg); //store current_arg
 
-				//clear the current arg buffer, increment the total argument count 
-				memset(current_arg, 0, sizeof current_arg);
-				num_args += 1;
+				memset(current_arg, 0, sizeof current_arg); //clear the current arg buffer
+				num_args += 1; //increment number of arguments
 			}	
 
-			// if a newline is reached, the entry is finished and needs to be run
 			if (c == '\n') {
-
-				// add the null-terminating character for exec
 				command_args[ num_args ] = '\0';
+
 				print_command(command_args, num_args);
-
-				// pass in command arugments and pipe-index-array, returns list of list sep by pipes
-				
-
-
 				//fork/execute progam
 				launch(command_args, num_args, gt_found);
+
 
 				//Reset Variables for next command
 				memset(command_args, 0, sizeof command_args);
 				num_args = 0;
 
-				//reset the pipecount and pipe-index-array
-				for(n = 0; n < MAX_ARG_POSSIBLE ; n++) { pipe_locations[n] = -1; }
-				NO_PIPES = 0;
-
 				printf("\nsish:>");
 			}
+			else if( c == ' ') continue; //If we hit a space, reset arg index
 
-			// if space is reached, do nothing			
-			else if( c == ' ') continue; 
+			// else if( c == '|') {
+			// 	command_args[ num_args ] = '\0';
+			// }
+			else { // c == | < > &
+				char* charstr = malloc(2*sizeof(char*));
+				command_args[ num_args ] =  malloc(2*sizeof(char*));
+				charstr[0] = c;
+				charstr[1] = '\0';
 
-			// if c is an operator
-			else { 
+				// strcpy(command_args[ num_args ], charstr); //store the operator as a current_arg
+				// num_args += 1;
+				// free(charstr);
 
-				// if pipe, add the index of command_args to the pipe_locations array
-				if( c == '|')
-				{	
-					pipe_locations[ NO_PIPES++  ] = num_args-1;
-				}	
-
+				// if( c == '|') {
+				// 	pipe_indeces[pipe_count] = num_args - 1;
+				// 	printf("Pipe at arg %d\n", pipe_indeces[pipe_count]);
+				// 	pipe_count += 1;
+				// }
 				if(c == '>') {
 					gt_found = 1;					
 				}
@@ -99,8 +83,6 @@ int main()
 			index += 1;	
 		}
 	}
-
-
 	return 0;
 }
 

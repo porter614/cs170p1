@@ -1,0 +1,30 @@
+//**************************************
+//**      int dup(int oldfd);         **
+//**************************************
+
+dup() system call creates copy of file descriptor oldfd
+- creates copy of oldfd using lowest-numbereqriptor for the new descriptor
+
+	* after successful return:
+		- old/new file descriptors can be used interchangeably
+			- share file offset and file status flags
+
+
+//**************************************
+//**  int dup2(int oldfd, int newfd); **
+//**************************************
+
+dup2() system mcall does same as dup(), but uses newfd file descriptor
+	* steps of closing and resuing newfd file descriptor are performed atomically
+
+	* trying to implement this using close(2) and dup() would be subject to race conditions
+
+
+
+
+//*************
+// Return Val
+//*************
+
+	*	on success: new descriptor
+	*	on error: -1 and errno is set appropriately
