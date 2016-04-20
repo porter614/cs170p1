@@ -13,10 +13,7 @@ struct List
 	// char* the_list[1024];
 };
 
-
-
-
-char** sep_by_pipe( char** command_args, int* pipes, int NO_PIPES, int NO_ARGS );
+void sep_by_pipe(struct List* res, char** command_args, int* pipes, int NO_PIPES, int NO_ARGS );
 void list_insert( struct List* myList, char* str );
 
 int main()
@@ -27,10 +24,24 @@ int main()
 	int NO_ARGS = 5;
 	char* command_args[ 5 ] = { "arg1", "arg2", "arg3", "arg4", "arg5" };
 
+	struct List res[100];	
+	int i,j;
+	for( i = 0; i < 100; i++)
+	{
+		res[i].count = 0;
 
+		// char**
+		res[i].the_list = malloc(50*sizeof(char*));
 
+		for (j = 0; j < 100; j++)
+		{	
+			// char*
+			res[i].the_list[j] = malloc(50*sizeof(char));
+		}
+		
+	}
 
-	sep_by_pipe(command_args, pipes, NO_PIPES, NO_ARGS );
+	sep_by_pipe(res, command_args, pipes, NO_PIPES, NO_ARGS );
 
 	return 0;
 
@@ -49,9 +60,8 @@ void list_insert( struct List* myList, char* str )
 }
 
 
-char** sep_by_pipe(char** command_args, int* pipes, int NO_PIPES, int NO_ARGS )
+void sep_by_pipe(struct List* res, char** command_args, int* pipes, int NO_PIPES, int NO_ARGS )
 {	
-	char** result; // [DEBUG]: just to get compilation
 
 	//forloop iterators
 
@@ -62,23 +72,6 @@ char** sep_by_pipe(char** command_args, int* pipes, int NO_PIPES, int NO_ARGS )
 	// int list_len[1024];  // keeps track of how many terms are in each array of the array of arrays
 	int list_number = -1;     //keeps track of which list it is in the tbr array
 							  // note, list_number is -1 from the actual # of lists (to start filling at result[0])
-
-	struct List res[100];	
-	for( i = 0; i < 100; i++)
-	{
-		res[i].count = 0;
-
-		// char**
-		res[i].the_list = malloc(50*sizeof(char*));
-
-		for (j = 0; j < 100; j++)
-		{	
-			// char*
-			res[i].the_list[j] = malloc(50*sizeof(char));
-		}
-		
-	}
-
 
 
 
@@ -130,6 +123,6 @@ char** sep_by_pipe(char** command_args, int* pipes, int NO_PIPES, int NO_ARGS )
 
 
 
-	return result;
+	
 }
 
