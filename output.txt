@@ -1,8 +1,2 @@
-fuckyeah.py
-Makefile
-output.txt
-potential_errors
-README.md
-shell
-shell.c
-test.c
+Type in a number 
+The number you typed was 5
