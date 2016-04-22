@@ -6,7 +6,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-
 //*****************************************************************************
 //**           struct List: 											   ****
 //**                an array of these makes an array of array of strings   ****
@@ -17,15 +16,15 @@ struct List
 	char** the_list; // an array of strings
 };
 
+int lt_found = 0, gt_found = 0, bg_found = 0;
 //*****************************************************************************
 //**                      function definitions                             ****
 //*****************************************************************************
 int sep_by_pipe(struct List* res, char** command_args, int* pipes, int NO_PIPES, int NO_ARGS );
 void list_insert( struct List* myList, char* str );
-void launch(char **args, int num_args, int gt_found, int lt_found, int in, int out);
+void launch(char **args, int num_args, int in, int out);
 void print_command(char **args, int num_args);
-
-
+void create_file(char *args);
 
 //*****************************************************************************
 //**           main: 											           ****
@@ -36,22 +35,20 @@ int main()
 	// variables to be used throughout
 		char c;
 		char* current_arg = malloc(50*sizeof(char)); //max size of current_arg = 50 chars (arbitrary max)
-		char* last_arg = malloc(50*sizeof(char));
 		char** command_args = malloc(50*sizeof(char*)); // literally no clue what to set it as
-		char** launch_command = malloc(50*sizeof(char*));
-		int index = 0, num_args = 0, pipe_indeces[50], gt_found = 0, lt_found = 0;
-		int MAX_ARG_POSSIBLE = 1024;
-		int NO_PIPES = 0;
+		int index = 0, num_args = 0;
+		int MAX_ARG_POSSIBLE = 1024, NO_PIPES = 0;
 	//this array will store all possible locations of pipes, -1 signifies end of pipe list
-		int pipe_locations[ MAX_ARG_POSSIBLE ];
-		int n = 0;
+		int pipe_locations[ MAX_ARG_POSSIBLE ], n = 0;
 		for(n = 0; n < MAX_ARG_POSSIBLE ; n++) { pipe_locations[n] = -1; }
 
 	//printing the shell prompt
 		printf("\nsish:>");
 	//interpret character-by-character 
-		while( (c=getchar())!= '~' )
+		while( (c=getchar())!= EOF )
 		{	
+			//if (c == EOF) 
+			//	exit(0);
 			if( c == '|' || c=='<' || c=='>' || c == ' ' || c == '&' || c == '\n')
 			{	
 			// Reached the end of a token, time to store argument that has been built
@@ -59,6 +56,11 @@ int main()
 				{	
 				// Null terminate the token
 					current_arg[index] = '\0';  
+
+				// Check if command entered is "exit" if so exit shell
+					if (num_args == 0 && strcmp(current_arg, "exit") == 0)
+						exit(1);
+
 				// Reset current_arg index for next arg rebuild
 					index = 0; 
 
@@ -67,7 +69,7 @@ int main()
 					strcpy(command_args[ num_args ], current_arg);
 
 				//clear the current arg buffer, increment the total argument count 
-					memset(current_arg, 0, sizeof current_arg);
+					memset(current_arg, 0, 1*sizeof(current_arg));
 					num_args += 1;
 			}	
 
@@ -79,7 +81,6 @@ int main()
 					//print_command(command_args, num_args);
 
 				// pass in command arugments and pipe-index-array, returns list of list sep by pipes
-					
 				// a list array will be returned
 					struct List res[100];
 				// ... List Init
@@ -101,66 +102,49 @@ int main()
 				// separate the input arguments by pipes
 					int list_number = sep_by_pipe(res, command_args, pipe_locations, NO_PIPES, num_args );
 
-
 				//fork/execute progam
-					int in = 0, fd[2], save;
-					save = dup(1);
-
+					int in = 0, fd[2], save = dup(1);
 					for(i = 0; i <= list_number; i++)
 					{
-						// printf("%d\n", res[i].count);
-
-						// for(j = 0; j < res[i].count; j++)
-						// {
-						// 	printf("%s\n", res[i].the_list[j]);
-						// }
-
 						// printf("----------------------------\n");
 						if (i == list_number) {
 							dup2(save, 1);
-							launch(res[i].the_list, res[i].count, gt_found, lt_found, in, 1);
+							launch(res[i].the_list, res[i].count, in, 1);
 							break;
 						}
 
 						pipe(fd);
 						//launch(command1[i], 3, 0, 1);
-						launch(res[i].the_list, res[i].count, gt_found, lt_found, in, fd[1]);
+						launch(res[i].the_list, res[i].count, in, fd[1]);
 						close(fd[1]);
 						in = fd[0];
 					}	
 
-
 				//Reset Variables for next command
-
-					memset(command_args, 0, sizeof command_args);
-					num_args = 0; gt_found = 0; lt_found = 0;
-
-
+					memset(command_args, 0, 1*(sizeof command_args));
+					num_args = 0; gt_found = 0; lt_found = 0, bg_found = 0;
 				//reset the pipecount and pipe-index-array
 					for(n = 0; n < MAX_ARG_POSSIBLE ; n++) { pipe_locations[n] = -1; }
 					NO_PIPES = 0;
-
 					printf("\nsish:>");
 			}
 			// if space is reached, do nothing			
 				else if( c == ' ') continue; 
-
 			// if c is an operator
 				else { 
-
 				// if pipe, add the index of command_args to the pipe_locations array
-					if( c == '|')
-					{	
+					if( c == '|') {	
 						pipe_locations[ NO_PIPES++  ] = num_args-1;
 					}	
-
 					if(c == '>') {
 						gt_found = 1;					
 					}
 					else if (c == '<') {
 						lt_found = 1;
 					}
-
+					else if (c == '&') {
+						bg_found = 1;
+					}
 				}
 			}
 		//Reached normal character
@@ -170,8 +154,6 @@ int main()
 				index += 1;	
 			}
 		}
-
-
 		return 0;
 }
 
@@ -180,7 +162,7 @@ int main()
 //**           Launch function:	     									   ****
 //**                                                                       ****
 //*****************************************************************************
-void launch(char **args, int num_args, int gt_found, int lt_found, int in, int out) {
+void launch(char **args, int num_args, int in, int out) {
 	// printf("iNSIDE launch\n");
 	// printf("entered in: %d \n", in);
 	// printf("entered out: %d \n", out);
@@ -189,7 +171,9 @@ void launch(char **args, int num_args, int gt_found, int lt_found, int in, int o
 	int fp = 1, stdio_save;
 
 	if (gt_found) {
-		printf("Last arg = %s", args[num_args - 1]);
+		//printf("Last arg = %s", args[num_args - 1]);
+		create_file(args[num_args -1]);
+
 		fp = open(args[num_args - 1], O_WRONLY); //Open file/get file descriptor
 		args[num_args - 1] = '\0'; 				 //Delete file from command so you can run
 
@@ -197,7 +181,7 @@ void launch(char **args, int num_args, int gt_found, int lt_found, int in, int o
 	    dup2(fp, 1);		   //make stdout point to file pointer
     }
     else if (lt_found) {
-    	printf("Last arg = %s\n", args[1]);
+    	//printf("Last arg = %s\n", args[1]);
     	fp = open(args[1], O_RDONLY); //Open file/get file descriptor
 		args[1] = '\0'; 				 //Delete file from command so you can run
 
@@ -205,7 +189,7 @@ void launch(char **args, int num_args, int gt_found, int lt_found, int in, int o
 	    dup2(fp, 0);		   //make stdout point to file pointer
     }
 
-
+    //Fork a process
     pid_t process_id = fork();
 	if (process_id == 0) {
 		//Child Process
@@ -220,24 +204,29 @@ void launch(char **args, int num_args, int gt_found, int lt_found, int in, int o
 
 		if (execvp(args[0], args) == -1) {
 		//if (execvp("/bin/sh", NULL) == -1){
-		    printf("Unknown command\n");
+		    printf("ERROR: Exec failed, unknown command\n");
 		    exit(0);
-		}
+		} 
 	}
 	else if (process_id < 0) {
 		//error
+		printf("ERROR: While forking process...\n");
+		exit(0);
 	}
 	else {
 		//Parent Process
-		int child_return_status;
-		waitpid(process_id, &child_return_status, 0);
+		int child_return_status = 0;
+
+		if (bg_found == 0)
+			waitpid(process_id, &child_return_status, 0);
 
 		if (child_return_status){
 			//error
-			printf("Error in child process.");
+			printf("ERROR: in child process...\n");
 		}
 		else {
 			//no error
+			//printf("Child process finished with return status %d\n", child_return_status);
 			if ( gt_found ) {
 				dup2(stdio_save, 1);
 				close(stdio_save);
@@ -248,13 +237,19 @@ void launch(char **args, int num_args, int gt_found, int lt_found, int in, int o
 				close(stdio_save);
 				close(fp);
 			}
-			printf("Child process finished with return status %d\n", child_return_status);
-
 		}
 	}
 }
 
 
+//*****************************************************************************
+//**           Creates the file to pipe output to:						   ****
+//**                                                                       ****
+//*****************************************************************************
+void create_file(char *args) {
+	FILE *fp = fopen(args, "w+");
+	fclose(fp);
+}
 
 //*****************************************************************************
 //**           Prints command to be run:								   ****
@@ -273,13 +268,7 @@ void print_command(char **args, int num_args) {
 void list_insert( struct List* myList, char* str )
 {
 	strcpy ( myList->the_list[ myList->count ], str) ;
-
-	// printf("Just added %s to the List@ count %d\n", str, myList->count );
-
 	myList->count += 1;
-
-	// printf("New Count Value: %d\n", myList->count);
-
 }
 
 //*****************************************************************************
@@ -288,19 +277,12 @@ void list_insert( struct List* myList, char* str )
 //*****************************************************************************
 int sep_by_pipe(struct List* res, char** command_args, int* pipes, int NO_PIPES, int NO_ARGS )
 {	
-
 	//forloop iterators
-
 	int i = 0;
 	int j = 0;
-	int k = 0;
-
 	// int list_len[1024];  // keeps track of how many terms are in each array of the array of arrays
 	int list_number = -1;     //keeps track of which list it is in the tbr array
 							  // note, list_number is -1 from the actual # of lists (to start filling at result[0])
-
-
-
 	int start_index = -1;
 	int stop_index = pipes[0];
 	for( i = 0 ; i < NO_PIPES; i++ )
@@ -313,15 +295,10 @@ int sep_by_pipe(struct List* res, char** command_args, int* pipes, int NO_PIPES,
 
 			//printf("%s, ", command_args[j]);
 		}
-
 		//printf("\n");
-
 		start_index = stop_index;
 		stop_index = pipes[i+1];
 	}
-
-
-
 	if( start_index !=  NO_ARGS )
 	{
 		list_number += 1;
