@@ -1,2 +1,1 @@
-Type in a number 
-The number you typed was 5
+8

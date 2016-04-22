@@ -20,9 +20,9 @@ struct List
 //*****************************************************************************
 //**                      function definitions                             ****
 //*****************************************************************************
-void sep_by_pipe(struct List* res, char** command_args, int* pipes, int NO_PIPES, int NO_ARGS );
+int sep_by_pipe(struct List* res, char** command_args, int* pipes, int NO_PIPES, int NO_ARGS );
 void list_insert( struct List* myList, char* str );
-void launch(char **args, int num_args, int gt_found, int lt_found);
+void launch(char **args, int num_args, int gt_found, int lt_found, int in, int out);
 void print_command(char **args, int num_args);
 
 
@@ -76,7 +76,7 @@ int main()
 
 				// add the null-terminating character for exec
 					command_args[ num_args ] = '\0';
-					print_command(command_args, num_args);
+					//print_command(command_args, num_args);
 
 				// pass in command arugments and pipe-index-array, returns list of list sep by pipes
 					
@@ -99,11 +99,36 @@ int main()
 					}
 
 				// separate the input arguments by pipes
-					sep_by_pipe(res, command_args, pipe_locations, NO_PIPES, num_args );
+					int list_number = sep_by_pipe(res, command_args, pipe_locations, NO_PIPES, num_args );
 
 
 				//fork/execute progam
-					launch(command_args, num_args, gt_found, lt_found);
+					int in = 0, fd[2], save;
+					save = dup(1);
+
+					for(i = 0; i <= list_number; i++)
+					{
+						// printf("%d\n", res[i].count);
+
+						// for(j = 0; j < res[i].count; j++)
+						// {
+						// 	printf("%s\n", res[i].the_list[j]);
+						// }
+
+						// printf("----------------------------\n");
+						if (i == list_number) {
+							dup2(save, 1);
+							launch(res[i].the_list, res[i].count, gt_found, lt_found, in, 1);
+							break;
+						}
+
+						pipe(fd);
+						//launch(command1[i], 3, 0, 1);
+						launch(res[i].the_list, res[i].count, gt_found, lt_found, in, fd[1]);
+						close(fd[1]);
+						in = fd[0];
+					}	
+
 
 				//Reset Variables for next command
 
@@ -155,9 +180,13 @@ int main()
 //**           Launch function:	     									   ****
 //**                                                                       ****
 //*****************************************************************************
-void launch(char **args, int num_args, int gt_found, int lt_found) {	
-	int status, fp = 1, stdio_save;
+void launch(char **args, int num_args, int gt_found, int lt_found, int in, int out) {
+	// printf("iNSIDE launch\n");
+	// printf("entered in: %d \n", in);
+	// printf("entered out: %d \n", out);
+	args[num_args] = '\0';
 
+	int fp = 1, stdio_save;
 
 	if (gt_found) {
 		printf("Last arg = %s", args[num_args - 1]);
@@ -180,6 +209,15 @@ void launch(char **args, int num_args, int gt_found, int lt_found) {
     pid_t process_id = fork();
 	if (process_id == 0) {
 		//Child Process
+		if (in != 0) {
+			dup2 (in, 0);
+			close (in);
+		}
+		if (out != 1) {
+			dup2 (out, 1);
+			close (out);
+		}
+
 		if (execvp(args[0], args) == -1) {
 		//if (execvp("/bin/sh", NULL) == -1){
 		    printf("Unknown command\n");
@@ -215,49 +253,7 @@ void launch(char **args, int num_args, int gt_found, int lt_found) {
 		}
 	}
 }
-//*****************************************************************************
-//**           Launch function for pipes:								   ****
-//**                                                                       ****
-//*****************************************************************************
-void launch_pipe(char **args1, char **args2) {	
-	// int pipe_fd[2];
 
-	// if (pipe(pipefd) == -1) {
- //        perror("pipe");
- //        exit(EXIT_FAILURE);
- //    }
- //    pid_t p_id = fork();
-
- //    if (process_id == 0) {
-	// 	//Child Process
-	// 	if (execvp(args[0], args) == -1) {
-	// 	//if (execvp("/bin/sh", NULL) == -1){
-	// 	    printf("Unknown command\n");
-	// 	    exit(0);
-	// 	}
-	// }
-	// else if (process_id < 0) {
-	// 	//error
-	// }
-	// else {
-	// 	//Parent Process
-	// 	printf("Hello from Parent\n");
-	// 	int child_return_status;
-	// 	waitpid(process_id, &child_return_status, 0);
-
-	// 	if (child_return_status){
-	// 		//error
-	// 		printf("Error in child process.");
-	// 	}
-	// 	else {
-	// 		//no error
-	// 		printf("Child process finished with return status %d\n", child_return_status);
-	// 	}
-	// }
-
-
-
-}
 
 
 //*****************************************************************************
@@ -278,11 +274,11 @@ void list_insert( struct List* myList, char* str )
 {
 	strcpy ( myList->the_list[ myList->count ], str) ;
 
-	printf("Just added %s to the List@ count %d\n", str, myList->count );
+	// printf("Just added %s to the List@ count %d\n", str, myList->count );
 
 	myList->count += 1;
 
-	printf("New Count Value: %d\n", myList->count);
+	// printf("New Count Value: %d\n", myList->count);
 
 }
 
@@ -290,7 +286,7 @@ void list_insert( struct List* myList, char* str )
 //**           Takes input commands & separates it by pipes 			   ****
 //**                                                                       ****
 //*****************************************************************************
-void sep_by_pipe(struct List* res, char** command_args, int* pipes, int NO_PIPES, int NO_ARGS )
+int sep_by_pipe(struct List* res, char** command_args, int* pipes, int NO_PIPES, int NO_ARGS )
 {	
 
 	//forloop iterators
@@ -315,10 +311,10 @@ void sep_by_pipe(struct List* res, char** command_args, int* pipes, int NO_PIPES
 		{	
 			list_insert( &res[list_number], command_args[j] );
 
-			printf("%s, ", command_args[j]);
+			//printf("%s, ", command_args[j]);
 		}
 
-		printf("\n");
+		//printf("\n");
 
 		start_index = stop_index;
 		stop_index = pipes[i+1];
@@ -333,26 +329,10 @@ void sep_by_pipe(struct List* res, char** command_args, int* pipes, int NO_PIPES
 		{
 			list_insert( &res[list_number], command_args[i] );
 
-			printf("%s, ", command_args[i]);
+			//printf("%s, ", command_args[i]);
 		}
 	}
-	printf("\n");
 
-	for(i = 0; i <= list_number; i++)
-	{
-		printf("%d\n", res[i].count);
-
-		for(j = 0; j < res[i].count; j++)
-		{
-			printf("%s\n", res[i].the_list[j]);
-		}
-
-		printf("----------------------------\n");
-	}	
-
-
-
-
-	
+	return list_number;
 }
 

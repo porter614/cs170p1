@@ -49,10 +49,6 @@ int main()
 
 
 void launch(char **args, int num_args, int gt_found, int lt_found, int in, int out) {
-	printf("iNSIDE launch\n");
-	printf("entered in: %d \n", in);
-	printf("entered out: %d \n", out);
-
 	int fp = 1, stdio_save;
 
 	if (gt_found) {
