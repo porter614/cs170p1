@@ -171,6 +171,7 @@ int main()
 					{
 						// printf("----------------------------\n");
 						if (i == list_number) {
+							if(gt_found) gt_found = 2;
 							dup2(save, 1);
 							launch(res[i].the_list, res[i].count, in, 1);
 							break;
@@ -241,14 +242,14 @@ void launch(char **args, int num_args, int in, int out) {
 	// printf("iNSIDE launch\n");
 	// printf("entered in: %d \n", in);
 	// printf("entered out: %d \n", out);
-
+	// print_command(args, num_args);
 
 	args[num_args] = '\0';
 
 	int fp = 1, stdio_save;
 
-	if (gt_found) {
-		//printf("Last arg = %s", args[num_args - 1]);
+	if (gt_found == 2) {
+		// printf("Last arg = %s", args[num_args - 1]);
 		create_file(args[num_args -1]);
 
 		fp = open(args[num_args - 1], O_WRONLY); //Open file/get file descriptor
