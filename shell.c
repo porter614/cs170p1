@@ -41,7 +41,7 @@ int main()
 		int MAX_ARG_POSSIBLE = 1024, NO_PIPES = 0, NO_QUOTES = 0;
 	//this array will store all possible locations of pipes, -1 signifies end of pipe list
 		int pipe_locations[ MAX_ARG_POSSIBLE ], n = 0;
-		int quote_locations[ MAX_ARG_POSSIBLE];
+		// int quote_locations[ MAX_ARG_POSSIBLE];
 		for(n = 0; n < MAX_ARG_POSSIBLE ; n++) { pipe_locations[n] = -1; }
 
 	//printing the shell prompt
@@ -189,7 +189,7 @@ int main()
 					num_args = 0; gt_found = 0; lt_found = 0, bg_found = 0;
 				//reset the pipecount and pipe-index-array
 					for(n = 0; n < MAX_ARG_POSSIBLE ; n++) { pipe_locations[n] = -1; }
-					for(n = 0; n < MAX_ARG_POSSIBLE ; n++) { quote_locations[n] = -1; }
+					// for(n = 0; n < MAX_ARG_POSSIBLE ; n++) { quote_locations[n] = -1; }
 					NO_PIPES = 0;
 					NO_QUOTES = 0;
 					printf("\nsish:>");
@@ -219,7 +219,7 @@ int main()
 			{	
 				if(c=='\"')
 				{
-					quote_locations[NO_QUOTES++ ] = num_args-1;
+					// quote_locations[NO_QUOTES++ ] = num_args-1;
 					// printf("Just added a quote\n");
 				}
 				else
