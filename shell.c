@@ -25,7 +25,8 @@ void list_insert( struct List* myList, char* str );
 void launch(char **args, int num_args, int in, int out);
 void print_command(char **args, int num_args);
 void create_file(char *args);
-
+int is_pipe_within_quotes(int NO_ARGS, char** command_args, int NO_PIPES, int* pipes );
+char* quote = "\"";
 //*****************************************************************************
 //**           main: 											           ****
 //**             launches shell, grabs commands, runs them                 ****
@@ -37,9 +38,10 @@ int main()
 		char* current_arg = malloc(50*sizeof(char)); //max size of current_arg = 50 chars (arbitrary max)
 		char** command_args = malloc(50*sizeof(char*)); // literally no clue what to set it as
 		int index = 0, num_args = 0;
-		int MAX_ARG_POSSIBLE = 1024, NO_PIPES = 0;
+		int MAX_ARG_POSSIBLE = 1024, NO_PIPES = 0, NO_QUOTES = 0;
 	//this array will store all possible locations of pipes, -1 signifies end of pipe list
 		int pipe_locations[ MAX_ARG_POSSIBLE ], n = 0;
+		int quote_locations[ MAX_ARG_POSSIBLE];
 		for(n = 0; n < MAX_ARG_POSSIBLE ; n++) { pipe_locations[n] = -1; }
 
 	//printing the shell prompt
@@ -49,7 +51,9 @@ int main()
 		{	
 			//if (c == EOF) 
 			//	exit(0);
-			if( c == '|' || c=='<' || c=='>' || c == ' ' || c == '&' || c == '\n')
+			// printf("%c\n",c); // keep for debugging
+
+			if( (c == '|' && NO_QUOTES%2==0) || c=='<' || c=='>' || c == ' ' || c == '&' || c == '\n')
 			{	
 			// Reached the end of a token, time to store argument that has been built
 				if( index != 0 ) 
@@ -76,9 +80,18 @@ int main()
 			// if a newline is reached, the entry is finished and needs to be run
 				if (c == '\n') {
 
+					// printf("Num args: %d\n", num_args); //debug
+					if(num_args==0) // trying to handle just hitting enter
+					{
+						// printf("ya just hit enter ?\n"); //debug
+						printf("\nsish:>");
+						continue;
+					}
+
 				// add the null-terminating character for exec
 					command_args[ num_args ] = '\0';
 					//print_command(command_args, num_args);
+
 
 				// pass in command arugments and pipe-index-array, returns list of list sep by pipes
 				// a list array will be returned
@@ -99,8 +112,58 @@ int main()
 						
 					}
 
+//new additions, debug
+				// see if there is a pipe within the quotes
+					int is_there = is_pipe_within_quotes( num_args, command_args, NO_PIPES, pipe_locations);
+					// printf("%d\n", is_there);
+
+				// if there is no pipe between quotes
+					if(is_there == 0)
+					{
+						//split by pipes
+						// int list_num1 = sep_by_pipe(res, command_args, pipe_locations, NO_PIPES, num_args );
+							// per string in return, apply split by quotes
+
+					}
+				// if there is a pipe between quotes
+					else if(is_there == 1 )
+					{
+						// split by quotes
+
+
+						// consolidate echo, [echo+1]
+
+						// split by pipes
+						
+					}
+// end new additions
+
+
+//debug        
+				// int f = 0;  
+				// for(f=0; f< NO_PIPES; f++)
+				// {
+				// 	printf("PipeLoc: %d\n", pipe_locations[f]);
+				// }
+				// printf("\n");
+
+
 				// separate the input arguments by pipes
 					int list_number = sep_by_pipe(res, command_args, pipe_locations, NO_PIPES, num_args );
+		
+			// for(i = 0; i <= list_number; i++)
+			// {
+			// 	printf("%d\n", res[i].count);
+
+			// 	for(j = 0; j < res[i].count; j++)
+			// 	{
+			// 		printf("%s\n", res[i].the_list[j]);
+			// 	}
+
+			// 	printf("----------------------------\n");
+			// }	
+//end debug
+
 
 				//fork/execute progam
 					int in = 0, fd[2], save = dup(1);
@@ -125,16 +188,19 @@ int main()
 					num_args = 0; gt_found = 0; lt_found = 0, bg_found = 0;
 				//reset the pipecount and pipe-index-array
 					for(n = 0; n < MAX_ARG_POSSIBLE ; n++) { pipe_locations[n] = -1; }
+					for(n = 0; n < MAX_ARG_POSSIBLE ; n++) { quote_locations[n] = -1; }
 					NO_PIPES = 0;
+					NO_QUOTES = 0;
 					printf("\nsish:>");
 			}
 			// if space is reached, do nothing			
 				else if( c == ' ') continue; 
 			// if c is an operator
 				else { 
+					
 				// if pipe, add the index of command_args to the pipe_locations array
 					if( c == '|') {	
-						pipe_locations[ NO_PIPES++  ] = num_args-1;
+						if( NO_QUOTES%2==0 )	pipe_locations[ NO_PIPES++  ] = num_args-1;
 					}	
 					if(c == '>') {
 						gt_found = 1;					
@@ -150,8 +216,17 @@ int main()
 		//Reached normal character
 			else 
 			{	
-				current_arg[index] = c;
+				if(c=='\"')
+				{
+					quote_locations[NO_QUOTES++ ] = num_args-1;
+					// printf("Just added a quote\n");
+				}
+				else
+				{
+
+				current_arg[index] = c;	
 				index += 1;	
+			    }
 			}
 		}
 		return 0;
@@ -166,6 +241,8 @@ void launch(char **args, int num_args, int in, int out) {
 	// printf("iNSIDE launch\n");
 	// printf("entered in: %d \n", in);
 	// printf("entered out: %d \n", out);
+
+
 	args[num_args] = '\0';
 
 	int fp = 1, stdio_save;
@@ -313,3 +390,42 @@ int sep_by_pipe(struct List* res, char** command_args, int* pipes, int NO_PIPES,
 	return list_number;
 }
 
+//*****************************************************************************
+//**           Checks to see if there is a pipe within quotes 			   ****
+//**                                                                       ****
+//*****************************************************************************
+int is_pipe_within_quotes(int NO_ARGS, char** command_args, int NO_PIPES, int* pipes )
+{	
+	int i = 0;
+	int j = 0;
+
+	int quote_opened = -1;
+	for(i=0; i<NO_ARGS; i++)
+	{	
+		int comparison = strcmp( quote , command_args[i] );
+		// printf("Comparison: %d\n", comparison );
+
+		if( comparison==0 ) // if it is a quote
+		{
+
+			quote_opened *= -1; // if a quote is found, open or close the quote
+			if( quote_opened == -1 ) continue; // this wouldve matched if a pipe came after the close quote
+		}
+		// printf("quote_opened%d\n i: %d\n", quote_opened, i);
+
+		if( quote_opened == 1 )
+		{
+			//quote opened, if pipe index matches, return true
+			for(j=0; j<NO_PIPES; j++ )
+			{
+				// printf("i:%d\n", i);
+				// printf("pipes[j]:%d\n", pipes[j]);
+				if( i== pipes[j] ) return 1;
+			}
+		}
+		// printf("\n");
+	}
+
+	return 0;
+
+}
